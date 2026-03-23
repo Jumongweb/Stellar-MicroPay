@@ -111,11 +111,11 @@ export default function SendPaymentForm({
           {formatXLM(amount)} sent successfully
         </p>
         
-          href={explorerUrl(txHash)}
+         href={explorerUrl(txHash)}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-sm text-stellar-400 hover:text-stellar-300 transition-colors"
-        >
+        <a>
           View on Stellar Expert
           <ExternalLinkIcon className="w-3.5 h-3.5" />
         </a>
