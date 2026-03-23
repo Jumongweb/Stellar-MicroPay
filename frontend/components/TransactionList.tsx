@@ -51,15 +51,34 @@ export default function TransactionList({
   if (loading) {
     return (
       <div className={compact ? "" : "card"}>
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse flex items-center gap-4 p-3 rounded-xl bg-white/3">
-              <div className="w-10 h-10 rounded-full bg-white/10" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 bg-white/10 rounded w-1/3" />
-                <div className="h-2 bg-white/5 rounded w-1/2" />
+        {!compact && (
+          <div className="flex items-center justify-between mb-6">
+            <div className="h-5 w-36 rounded-lg bg-cosmos-700 animate-pulse" />
+            <div className="h-4 w-14 rounded-lg bg-cosmos-700 animate-pulse" />
+          </div>
+        )}
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 p-3 rounded-xl bg-cosmos-800"
+            >
+              {/* Avatar circle */}
+              <div className="w-10 h-10 rounded-full bg-cosmos-700 animate-pulse flex-shrink-0" />
+
+              {/* Text lines */}
+              <div className="flex-1 min-w-0 space-y-2">
+                {/* First line: "Sent to" label + address pill */}
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-14 rounded bg-cosmos-700 animate-pulse" />
+                  <div className="h-5 w-28 rounded-lg bg-cosmos-700 animate-pulse" />
+                </div>
+                {/* Second line: timestamp */}
+                <div className="h-2.5 w-20 rounded bg-cosmos-700/70 animate-pulse" />
               </div>
-              <div className="h-4 bg-white/10 rounded w-20" />
+
+              {/* Amount */}
+              <div className="flex-shrink-0 h-4 w-20 rounded bg-cosmos-700 animate-pulse" />
             </div>
           ))}
         </div>
