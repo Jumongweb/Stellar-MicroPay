@@ -52,7 +52,7 @@ export default function Transactions({ publicKey, onConnect }: TransactionsProps
       {/* Export hint */}
       <div className="mb-5 p-3 rounded-xl bg-stellar-500/5 border border-stellar-500/15 flex items-center justify-between">
         <p className="text-xs text-slate-400">
-          Showing your 50 most recent payments. Click any transaction to view it on Stellar Expert.
+          Showing your transaction history. Click "Load more" to view older transactions.
         </p>
         <a
           href={`https://stellar.expert/explorer/testnet/account/${publicKey}`}
@@ -65,7 +65,7 @@ export default function Transactions({ publicKey, onConnect }: TransactionsProps
       </div>
 
       {/* Full transaction list */}
-      <TransactionList publicKey={publicKey} limit={50} />
+      <TransactionList publicKey={publicKey} limit={20} />
     </div>
   );
 }

@@ -47,6 +47,13 @@ export interface PaymentRecord {
   memo?: string;
   createdAt: string;
   transactionHash: string;
+  pagingToken?: string;
+}
+
+export interface PaymentHistoryResponse {
+  records: PaymentRecord[];
+  hasMore: boolean;
+  nextCursor?: string | (() => any);
 }
 
 // ─── Account helpers ────────────────────────────────────────────────────────
@@ -143,18 +150,24 @@ export async function submitTransaction(signedXDR: string) {
 // ─── Payment history ─────────────────────────────────────────────────────────
 
 /**
- * Fetch recent payment operations for an account.
+ * Fetch recent payment operations for an account with cursor-based pagination.
  */
 export async function getPaymentHistory(
   publicKey: string,
-  limit = 20
-): Promise<PaymentRecord[]> {
-  const payments = await server
+  limit = 20,
+  cursor?: string
+): Promise<PaymentHistoryResponse> {
+  let paymentsBuilder = server
     .payments()
     .forAccount(publicKey)
     .limit(limit)
-    .order("desc")
-    .call();
+    .order("desc");
+
+  if (cursor) {
+    paymentsBuilder = paymentsBuilder.cursor(cursor);
+  }
+
+  const payments = await paymentsBuilder.call();
 
   const records: PaymentRecord[] = [];
 
@@ -188,10 +201,15 @@ export async function getPaymentHistory(
       memo,
       createdAt: payment.created_at,
       transactionHash: payment.transaction_hash,
+      pagingToken: payment.paging_token,
     });
   }
 
-  return records;
+  return {
+    records,
+    hasMore: payments.records.length === limit && !!payments.next,
+    nextCursor: payments.next ? payments.next.toString() : undefined,
+  };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

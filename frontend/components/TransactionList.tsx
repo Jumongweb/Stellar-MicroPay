@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { getPaymentHistory, shortenAddress, explorerUrl, PaymentRecord } from "@/lib/stellar";
+import { getPaymentHistory, shortenAddress, explorerUrl, PaymentRecord, PaymentHistoryResponse } from "@/lib/stellar";
 import { formatXLM, timeAgo, copyToClipboard } from "@/utils/format";
 import clsx from "clsx";
 
@@ -21,26 +21,53 @@ export default function TransactionList({
 }: TransactionListProps) {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
 
-  const fetchPayments = useCallback(async () => {
-    setLoading(true);
+  const fetchPayments = useCallback(async (isLoadMore = false) => {
+    if (isLoadMore) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setPayments([]);
+      setNextCursor(undefined);
+      setHasMore(true);
+    }
     setError(null);
     try {
-      const data = await getPaymentHistory(publicKey, limit);
-      setPayments(data);
+      const data: PaymentHistoryResponse = await getPaymentHistory(
+        publicKey,
+        limit,
+        isLoadMore ? nextCursor : undefined
+      );
+      
+      if (isLoadMore) {
+        setPayments((prev: PaymentRecord[]) => [...prev, ...data.records]);
+      } else {
+        setPayments(data.records);
+      }
+      
+      setHasMore(data.hasMore);
+      setNextCursor(data.nextCursor);
     } catch (err) {
       setError("Could not load transaction history.");
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [publicKey, limit]);
+  }, [publicKey, limit, nextCursor]);
 
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+
+  const handleLoadMore = () => {
+    fetchPayments(true);
+  };
 
   const handleCopy = async (text: string, id: string) => {
     await copyToClipboard(text);
@@ -72,7 +99,7 @@ export default function TransactionList({
       <div className={compact ? "" : "card"}>
         <div className="text-center py-8">
           <p className="text-red-400 text-sm mb-3">{error}</p>
-          <button onClick={fetchPayments} className="btn-secondary text-sm py-2 px-4">
+          <button onClick={() => fetchPayments()} className="btn-secondary text-sm py-2 px-4">
             Try again
           </button>
         </div>
@@ -105,7 +132,7 @@ export default function TransactionList({
             Recent Payments
           </h2>
           <button
-            onClick={fetchPayments}
+            onClick={() => fetchPayments()}
             className="text-xs text-slate-500 hover:text-stellar-400 transition-colors flex items-center gap-1"
           >
             <RefreshIcon className="w-3.5 h-3.5" />
@@ -189,6 +216,26 @@ export default function TransactionList({
             </div>
           </div>
         ))}
+        
+        {/* Load more button */}
+        {hasMore && payments.length > 0 && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="btn-secondary text-sm py-2 px-6 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingMore ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-stellar-400 border-t-transparent rounded-full animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                "Load more"
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
