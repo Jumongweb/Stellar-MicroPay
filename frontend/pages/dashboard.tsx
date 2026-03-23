@@ -9,8 +9,10 @@ import Link from "next/link";
 import WalletConnect from "@/components/WalletConnect";
 import SendPaymentForm from "@/components/SendPaymentForm";
 import TransactionList from "@/components/TransactionList";
+import Toast from "@/components/Toast";
 import { getXLMBalance, shortenAddress } from "@/lib/stellar";
 import { formatXLM, formatUSD, copyToClipboard } from "@/utils/format";
+import { useToast } from "@/lib/useToast";
 
 interface DashboardProps {
   publicKey: string | null;
@@ -24,6 +26,7 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
   const [xlmPrice, setXlmPrice] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { visible: toastVisible, message: toastMessage, showToast } = useToast();
 
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
@@ -52,7 +55,8 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
 
   const handleCopyAddress = async () => {
     if (!publicKey) return;
-    await copyToClipboard(publicKey);
+    const ok = await copyToClipboard(publicKey);
+    if (ok) showToast("Address copied!");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -210,6 +214,7 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
           </div>
         </div>
       </div>
+      <Toast message={toastMessage} visible={toastVisible} />
     </div>
   );
 }
