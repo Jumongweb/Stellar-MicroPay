@@ -9,9 +9,11 @@ import Link from "next/link";
 import WalletConnect from "@/components/WalletConnect";
 import SendPaymentForm from "@/components/SendPaymentForm";
 import TransactionList from "@/components/TransactionList";
+import Toast from "@/components/Toast";
 import QRCodeModal from "@/components/QRCodeModal";
-import { getXLMBalance, shortenAddress } from "@/lib/stellar";
+import { getXLMBalance, shortenAddress, fundWithFriendbot, ACCOUNT_NOT_FOUND_ERROR } from "@/lib/stellar";
 import { formatXLM, formatUSD, copyToClipboard } from "@/utils/format";
+import { useToast } from "@/lib/useToast";
 
 interface DashboardProps {
   publicKey: string | null;
@@ -25,20 +27,45 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
   const [xlmPrice, setXlmPrice] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { visible: toastVisible, message: toastMessage, showToast } = useToast();
   const [showQRModal, setShowQRModal] = useState(false);
+
+  const isTestnet = process.env.NEXT_PUBLIC_STELLAR_NETWORK !== "mainnet";
+  const [accountNotFound, setAccountNotFound] = useState(false);
+  const [friendbotLoading, setFriendbotLoading] = useState(false);
 
   const fetchBalance = useCallback(async () => {
     if (!publicKey) return;
     setBalanceLoading(true);
+    setAccountNotFound(false);
     try {
       const bal = await getXLMBalance(publicKey);
       setXlmBalance(bal);
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === ACCOUNT_NOT_FOUND_ERROR) {
+        setAccountNotFound(true);
+      }
       setXlmBalance(null);
     } finally {
       setBalanceLoading(false);
     }
   }, [publicKey]);
+
+  const handleFriendbot = async () => {
+    if (!publicKey) return;
+    setFriendbotLoading(true);
+    try {
+      await fundWithFriendbot(publicKey);
+      showToast("Account funded! Refreshing balance...");
+      // Give Horizon a moment to index the new account
+      setTimeout(() => setRefreshKey((k) => k + 1), 2000);
+    } catch {
+      showToast("Friendbot funding failed. Please try again.");
+    } finally {
+      setFriendbotLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchBalance();
@@ -54,7 +81,8 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
 
   const handleCopyAddress = async () => {
     if (!publicKey) return;
-    await copyToClipboard(publicKey);
+    const ok = await copyToClipboard(publicKey);
+    if (ok) showToast("Address copied!");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -101,31 +129,22 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
                 {publicKey}
               </span>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                onClick={handleCopyAddress}
-                className="text-xs text-stellar-400 hover:text-stellar-300 transition-colors flex items-center gap-1.5"
-              >
-                {copied ? (
-                  <>
-                    <CheckIcon className="w-3.5 h-3.5" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="w-3.5 h-3.5" />
-                    Copy address
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setShowQRModal(true)}
-                className="text-xs text-stellar-400 hover:text-stellar-300 transition-colors flex items-center gap-1.5"
-              >
-                <QRIcon className="w-3.5 h-3.5" />
-                Show QR Code
-              </button>
-            </div>
+            <button
+              onClick={handleCopyAddress}
+              className="mt-2 text-xs text-stellar-400 hover:text-stellar-300 transition-colors flex items-center gap-1.5"
+            >
+              {copied ? (
+                <>
+                  <CheckIcon className="w-3.5 h-3.5" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <CopyIcon className="w-3.5 h-3.5" />
+                  Copy address
+                </>
+              )}
+            </button>
           </div>
 
           {/* Balance */}
@@ -152,6 +171,27 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
                 >
                   <RefreshIcon className="w-3 h-3" />
                   Refresh
+                </button>
+              </div>
+            ) : accountNotFound && isTestnet ? (
+              <div className="sm:text-right">
+                <p className="text-amber-400 text-sm mb-2">Account not funded yet</p>
+                <button
+                  onClick={handleFriendbot}
+                  disabled={friendbotLoading}
+                  className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed text-black font-semibold text-sm py-2 px-4 rounded-lg transition-colors"
+                >
+                  {friendbotLoading ? (
+                    <>
+                      <SpinnerIcon className="w-4 h-4 animate-spin" />
+                      Funding...
+                    </>
+                  ) : (
+                    <>
+                      <DropIcon className="w-4 h-4" />
+                      Fund Testnet Account
+                    </>
+                  )}
                 </button>
               </div>
             ) : (
@@ -221,6 +261,7 @@ export default function Dashboard({ publicKey, onConnect }: DashboardProps) {
           </div>
         </div>
       </div>
+      <Toast message={toastMessage} visible={toastVisible} />
 
       {/* QR Code Modal */}
       <QRCodeModal
@@ -266,14 +307,18 @@ function HistoryIcon({ className }: { className?: string }) {
   );
 }
 
-function QRIcon({ className }: { className?: string }) {
+function SpinnerIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      <rect x="7" y="11" width="3" height="3" rx="0.5" />
-      <rect x="14" y="11" width="3" height="3" rx="0.5" />
-      <rect x="7" y="16" width="3" height="3" rx="0.5" />
-      <rect x="14" y="16" width="3" height="3" rx="0.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M3 12h3m12 0h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
+    </svg>
+  );
+}
+
+function DropIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.25c-.41 0-.78.2-1.01.53l-6 8.5A7.5 7.5 0 1019.01 10.78l-6-8.5A1.25 1.25 0 0012 2.25z" />
     </svg>
   );
 }
