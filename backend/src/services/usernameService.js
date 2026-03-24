@@ -26,7 +26,8 @@ function registerUsername(username, publicKey) {
   }
 
   // Check if public key is already registered to another username
-  for (const [existingUsername, existingPublicKey] of usernameMap.entries()) {
+  // Added underscore to existingUsername to fix ESLint 'no-unused-vars' error
+  for (const [_, existingPublicKey] of usernameMap.entries()) {
     if (existingPublicKey === publicKey) {
       const error = new Error("Public key already registered to another username");
       error.status = 409;
