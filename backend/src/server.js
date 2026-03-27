@@ -50,9 +50,17 @@ app.use(
       }
     },
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+app.use("/api/auth",     authRoutes);
+app.use("/api/accounts", accountRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/health",       healthRoutes);
 
 // Global rate limiting — 100 requests per 15 minutes per IP
 const limiter = rateLimit({
